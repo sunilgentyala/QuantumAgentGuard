@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantumagentguard"
+version = "0.1.0"
+description = "Static analysis for AI agent codebases: agentic vulnerability patterns and quantum-readiness/PKI gaps, in one scan."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Sunil Gentyala", email = "sunil.gentyala@ieee.org" }]
+requires-python = ">=3.9"
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+]
+keywords = [
+    "ai-security",
+    "llm-security",
+    "agentic-ai",
+    "post-quantum-cryptography",
+    "pki",
+    "static-analysis",
+    "mcp",
+]
+
+[project.urls]
+Homepage = "https://sunilgentyala.github.io/QuantumAgentGuard/"
+Repository = "https://github.com/sunilgentyala/QuantumAgentGuard"
+
+[project.scripts]
+qag = "quantumagentguard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["quantumagentguard*"]
