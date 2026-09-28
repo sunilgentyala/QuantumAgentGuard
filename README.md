@@ -1,8 +1,12 @@
 # QuantumAgentGuard
 
-**Static analysis for AI agent codebases: agentic vulnerability patterns and quantum-readiness/PKI gaps, in one scan.**
+[![CI](https://github.com/sunilgentyala/QuantumAgentGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/sunilgentyala/QuantumAgentGuard/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.2.0-brightgreen)](https://github.com/sunilgentyala/QuantumAgentGuard/releases)
+[![Website](https://img.shields.io/badge/website-live-blue)](https://sunilgentyala.github.io/QuantumAgentGuard/)
 
-Site: https://sunilgentyala.github.io/QuantumAgentGuard/
+**Static analysis for AI agent codebases: agentic vulnerability patterns and quantum-readiness/PKI gaps, in one scan.**
 
 ## The gap this fills
 
