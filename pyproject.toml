@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantumagentguard"
-version = "0.1.0"
+version = "0.2.0"
 description = "Static analysis for AI agent codebases: agentic vulnerability patterns and quantum-readiness/PKI gaps, in one scan."
 readme = "README.md"
 license = { text = "MIT" }

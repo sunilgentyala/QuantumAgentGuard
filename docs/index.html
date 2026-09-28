@@ -127,6 +127,7 @@
       <a href="#gap">Why</a>
       <a href="#detectors">Detectors</a>
       <a href="#demo">Demo</a>
+      <a href="#evaluation">Evaluation</a>
       <a href="#start">Quickstart</a>
       <a href="https://github.com/sunilgentyala/QuantumAgentGuard">GitHub</a>
     </div>
@@ -136,7 +137,7 @@
 <header>
   <div class="wrap">
     <div class="badge-row">
-      <span class="badge status">v0.1.0 · early-stage research tool</span>
+      <span class="badge status">v0.2.0 · early-stage research tool</span>
       <span class="badge">MIT licensed</span>
       <span class="badge">Zero runtime dependencies</span>
     </div>
@@ -168,8 +169,8 @@
     </div>
 
     <div class="hero-stats">
-      <div class="hstat"><div class="hstat-val">7</div><div class="hstat-label">detector rules</div></div>
-      <div class="hstat"><div class="hstat-val">22</div><div class="hstat-label">passing tests</div></div>
+      <div class="hstat"><div class="hstat-val">8</div><div class="hstat-label">detector rules</div></div>
+      <div class="hstat"><div class="hstat-val">30</div><div class="hstat-label">passing tests</div></div>
       <div class="hstat"><div class="hstat-val">0</div><div class="hstat-label">runtime deps</div></div>
       <div class="hstat"><div class="hstat-val">2</div><div class="hstat-label">vuln classes, one scan</div></div>
     </div>
@@ -192,8 +193,8 @@
       <div class="card gap-old">
         <h3>What exists today</h3>
         <p>
-          Agentic red-teaming tools (e.g. DeepTeam, ~1.7k★) test prompt injection and unsafe
-          tool use. Post-quantum tooling (e.g. liboqs, 3.1k★) tests cryptographic primitives.
+          Agentic red-teaming tools (e.g. DeepTeam, ~3k★) test prompt injection and unsafe
+          tool use. Post-quantum tooling (e.g. liboqs, ~3.1k★) tests cryptographic primitives.
           They don't talk to each other, and neither one flags a project that's dangerously
           exposed in <em>both</em> dimensions at once.
         </p>
@@ -220,6 +221,7 @@
       <tr><td><code>AG001</code></td><td>Agentic</td><td>eval()/exec(), <span class="sev sev-high">HIGH</span> if arg looks agent/LLM-derived</td><td>CVE-2026-26030</td></tr>
       <tr><td><code>AG002</code></td><td>Agentic</td><td>os.system/popen, subprocess with shell=True</td><td>Command injection via tools</td></tr>
       <tr><td><code>AG003</code></td><td>Agentic</td><td>pickle.load(s), unguarded yaml.load()</td><td>Insecure agent-state deserialization</td></tr>
+      <tr><td><code>AG004</code></td><td>Agentic</td><td>subprocess.*([interpreter, "-c", code], ...) with a non-literal code arg</td><td>Same risk as eval/exec, via a subprocess</td></tr>
       <tr><td><code>PQ001</code></td><td>Quantum</td><td>RSA key generation</td><td>No PQ migration path</td></tr>
       <tr><td><code>PQ002</code></td><td>Quantum</td><td>ECDSA key generation</td><td>No PQ migration path</td></tr>
       <tr><td><code>PQ003</code></td><td>Quantum</td><td>Deprecated ssl.PROTOCOL_TLSv1*/SSLv2*/SSLv23</td><td>Blocks hybrid PQ key exchange</td></tr>
@@ -249,6 +251,23 @@ Findings: 6  |  Risk score: 45/100
   </div>
 </section>
 
+<section id="evaluation">
+  <div class="wrap">
+    <h2>Tested against real repos, not just the demo</h2>
+    <p class="section-lead">
+      v0.1.0 was run against 6 real public repositories (CrewAI examples, MCP servers, Semantic
+      Kernel, AutoGen, LlamaIndex tool integrations, plus a negative control). Every
+      <code>PQ004</code> finding it produced was a true positive &mdash; but it also missed two
+      real findings entirely: an <code>eval()</code>/<code>exec()</code> call hidden inside a
+      Jupyter notebook cell (no <code>.ipynb</code> support), and a
+      <code>subprocess.run([sys.executable, "-c", code])</code> call in a real MCP tool
+      integration (no rule covered it). Both are fixed in v0.2.0, verified against the exact
+      files that exposed them. Full methodology and results:
+      <a href="https://github.com/sunilgentyala/QuantumAgentGuard/blob/main/EVALUATION.md">EVALUATION.md</a>.
+    </p>
+  </div>
+</section>
+
 <section id="start">
   <div class="wrap">
     <h2>Quickstart</h2>
@@ -274,7 +293,7 @@ Findings: 6  |  Risk score: 45/100
 
 <footer>
   <div class="wrap">
-    <p>QuantumAgentGuard v0.1.0 &middot; MIT License &middot; <a href="https://github.com/sunilgentyala/QuantumAgentGuard">github.com/sunilgentyala/QuantumAgentGuard</a></p>
+    <p>QuantumAgentGuard v0.2.0 &middot; MIT License &middot; <a href="https://github.com/sunilgentyala/QuantumAgentGuard">github.com/sunilgentyala/QuantumAgentGuard</a></p>
   </div>
 </footer>
 

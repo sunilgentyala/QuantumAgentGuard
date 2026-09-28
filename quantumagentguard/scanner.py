@@ -7,6 +7,7 @@ standalone PQ004 finding is added.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -15,6 +16,32 @@ from .findings import Finding, ScanResult
 
 MANIFEST_NAMES = {"requirements.txt", "pyproject.toml", "package.json", "Pipfile", "setup.py"}
 SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache", "dist", "build"}
+
+
+def _notebook_code_cells(source_json: str) -> list[str]:
+    """Extract each code cell's source as a single string, in cell order.
+
+    A real gap found by scanning public repositories: cookbook-style agent
+    tutorials are frequently notebook-first, and an eval()/exec() call inside
+    a .ipynb code cell was completely invisible to a scanner that only ever
+    looked at path.suffix == ".py". Line numbers are reported relative to the
+    start of each cell (a notebook has no single global line numbering), not
+    the file as a whole -- documented here and in the README.
+    """
+    try:
+        nb = json.loads(source_json)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    cells = nb.get("cells", []) if isinstance(nb, dict) else []
+    sources = []
+    for cell in cells:
+        if not isinstance(cell, dict) or cell.get("cell_type") != "code":
+            continue
+        src = cell.get("source", "")
+        text = "".join(src) if isinstance(src, list) else str(src)
+        if text.strip():
+            sources.append(text)
+    return sources
 
 
 def _iter_files(root: Path):
@@ -45,6 +72,18 @@ def scan_directory(root: str) -> ScanResult:
             all_text_lower.append(source.lower())
             py_findings.extend(agentic_rules.scan_source(rel, source))
             py_findings.extend(pqc_rules.scan_source(rel, source))
+
+        elif path.suffix == ".ipynb":
+            try:
+                raw = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            result.files_scanned += 1
+            for cell_idx, cell_source in enumerate(_notebook_code_cells(raw), start=1):
+                cell_label = f"{rel}[cell {cell_idx}]"
+                all_text_lower.append(cell_source.lower())
+                py_findings.extend(agentic_rules.scan_source(cell_label, cell_source))
+                py_findings.extend(pqc_rules.scan_source(cell_label, cell_source))
 
         elif path.name in MANIFEST_NAMES:
             try:

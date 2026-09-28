@@ -11,7 +11,7 @@ authors:
 repository-code: https://github.com/sunilgentyala/QuantumAgentGuard
 url: https://sunilgentyala.github.io/QuantumAgentGuard/
 license: MIT
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-09-27
 abstract: Static analysis for AI agent codebases that scores both agentic vulnerability
   patterns (unsafe eval/exec, shell injection, insecure deserialization) and quantum-readiness

@@ -55,3 +55,36 @@ def test_risk_score_and_files_scanned(tmp_path):
     result = scan_directory(str(tmp_path))
     assert result.files_scanned == 1
     assert result.risk_score() == 0
+
+
+def test_notebook_code_cell_eval_is_flagged(tmp_path):
+    import json
+
+    notebook = {
+        "cells": [
+            {"cell_type": "markdown", "source": ["# demo"]},
+            {
+                "cell_type": "code",
+                "source": [
+                    "def handle(llm_output):\n",
+                    "    result = eval(llm_output)\n",
+                ],
+            },
+        ]
+    }
+    (tmp_path / "demo.ipynb").write_text(json.dumps(notebook))
+
+    result = scan_directory(str(tmp_path))
+
+    ag001 = [f for f in result.findings if f.rule_id == "AG001"]
+    assert len(ag001) == 1
+    assert ag001[0].severity == "HIGH"
+    assert "[cell 1]" in ag001[0].file
+    assert result.files_scanned == 1
+
+
+def test_malformed_notebook_does_not_crash(tmp_path):
+    (tmp_path / "broken.ipynb").write_text("{not valid json")
+    result = scan_directory(str(tmp_path))
+    assert result.files_scanned == 1
+    assert result.findings == []

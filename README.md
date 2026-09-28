@@ -37,6 +37,11 @@ opaque model or benchmark score behind it, only rules you can inspect in
 known-bad shapes were found by these specific rules," nothing more. Read it, don't just trust
 the score.
 
+Scans `.py` files and `.ipynb` notebook code cells (line numbers for notebook findings are
+relative to the cell, not the file). Dependency manifests (`requirements.txt`, `pyproject.toml`,
+`package.json`, `Pipfile`, `setup.py`) are read for framework/PQC marker text but not parsed
+for detector rules.
+
 ## Detectors
 
 | Rule | Category | Fires on | Real-world precedent |
@@ -44,6 +49,7 @@ the score.
 | `AG001` | Agentic | `eval()` / `exec()`, escalated to HIGH if the argument looks LLM/agent-derived | CVE-2026-26030 (Semantic Kernel) |
 | `AG002` | Agentic | `os.system`/`os.popen`, or `subprocess.*` with `shell=True` | Command injection via tool-calling agents |
 | `AG003` | Agentic | `pickle.load(s)`, unguarded `yaml.load()` | Insecure deserialization of agent memory/state |
+| `AG004` | Agentic | `subprocess.*([interpreter, "-c", code], ...)` with a non-literal code argument | Same risk as `eval()`/`exec()`, via a subprocess instead |
 | `PQ001` | Quantum-readiness | RSA key generation (`<3072` bits = MEDIUM; any size = at least INFO) | RSA has no post-quantum migration path |
 | `PQ002` | Quantum-readiness | ECDSA key generation | ECDSA has no post-quantum migration path |
 | `PQ003` | Quantum-readiness | Deprecated `ssl.PROTOCOL_TLSv1*`/`SSLv2*`/`SSLv23` constants | Blocks hybrid PQ key exchange outright |
@@ -81,6 +87,14 @@ Findings: 6  |  Risk score: 45/100
 
 Reproduce it yourself: `qag scan examples/vulnerable_agent_demo`.
 
+## Real-world evaluation
+
+v0.1.0 was run against 6 real public repositories (crewAI-examples, MCP servers,
+Semantic Kernel, AutoGen, LlamaIndex samples, plus a negative control), not just the
+bundled demo above. Every `PQ004` finding it produced was a true positive, but it also
+missed two real findings entirely, both fixed in v0.2.0 (see `CHANGELOG.md`). Full
+methodology, results, and known remaining limitations: [`EVALUATION.md`](EVALUATION.md).
+
 ## The risk score, exactly
 
 ```
@@ -97,6 +111,7 @@ quantumagentguard/   the package: findings model, both rule sets, scanner, repor
 tests/                pytest suite: every rule's positive and negative case
 examples/             a small fixed target that exercises every detector, used above
 docs/                 GitHub Pages site source
+EVALUATION.md         real-world evaluation against public agent-framework repositories
 ```
 
 ## Contributing

@@ -1,0 +1,114 @@
+# Real-world evaluation
+
+The bundled `examples/vulnerable_agent_demo/` is a synthetic target built to exercise every
+rule at once. It says nothing about how the rules behave on real, unmodified code. On
+2026-09-27, v0.1.0 was run against 6 real public repositories to check exactly that.
+
+## Method
+
+Cloned shallow (`--depth 1`) or sparse-checked-out to keep clones small, scanned with
+`qag scan <path> --json`, and every finding class was spot-checked by reading the flagged
+source in context.
+
+| Repo | Scope cloned | Role |
+|---|---|---|
+| crewAIInc/crewAI-examples | full | real CrewAI/LangChain agent examples |
+| modelcontextprotocol/servers | full | real MCP servers |
+| microsoft/semantic-kernel | `python/samples/getting_started` | real Semantic Kernel samples |
+| microsoft/autogen | `python/samples` | real AutoGen samples |
+| run-llama/llama_index | 6 tool-integration subdirectories | real LlamaIndex tool integrations |
+| anthropics/anthropic-cookbook | `tool_use` | negative control: no agent-*framework* marker expected |
+
+`OpenInterpreter/open-interpreter` was attempted and excluded: the project has since merged
+into a large polyglot monorepo (Codex CLI), and its checkout failed on Windows with a
+path-length error on deeply nested Rust test-snapshot paths, unrelated to `qag` itself.
+
+## Results, v0.1.0 (before the fixes below)
+
+| Repo | `.py` files scanned | Findings | Notes |
+|---|---|---|---|
+| crewAI-examples | 116 | 1 (`PQ004`) | markers: crewai, langchain, langgraph |
+| modelcontextprotocol/servers | 14 | 1 (`PQ004`) | markers: mcp, modelcontextprotocol |
+| semantic-kernel (getting_started) | 4 | 1 (`PQ004`) | marker: autogen — a real optional SK-AutoGen interop dependency in `pyproject.toml` |
+| autogen (samples) | 62 | 1 (`PQ004`) | marker: autogen |
+| llama_index (6 tool dirs) | 31 | 1 (`PQ004`) | markers: llama-index, llama_index, mcp |
+| anthropic-cookbook (negative control) | 17 | 0 | correctly silent — no agent-framework marker present |
+
+Every `PQ004` finding was traced back to a genuinely present framework marker and a genuinely
+absent PQC marker: **5/5 true positives, zero misfires** in this sample.
+
+`AG001`-`AG003` produced **zero findings across all 244 scanned `.py` files.** This was
+verified as a real absence, not a detection miss, by grepping the raw source of every repo for
+every pattern each rule targets (`eval(`, `exec(`, `os.system(`, `os.popen(`, `shell=True`,
+`pickle.load`, `pickle.loads`, `yaml.load(`, `generate_private_key`) — none of it is present in
+these repos' `.py` files. The honest takeaway: the bundled synthetic demo is a useful worked
+example of every rule firing at once, but it is not representative of what real "getting
+started"/cookbook-style agent code looks like.
+
+## Two real gaps this surfaced, both fixed in v0.2.0
+
+**1. Notebooks were completely invisible.** `scanner.py` only ever walked
+`path.suffix == ".py"`. Two real, `eval()`/`exec()`-on-agent-output findings exist in this
+sample, but only inside `.ipynb` code cells:
+
+- `anthropic-cookbook/tool_use/calculator_tool.ipynb` — `result = eval(expression)`, where
+  `expression` is a Claude tool-call argument. The notebook's own comment reads: *"eval is used
+  here for demonstration purposes only... use a safer alternative in production."*
+- `crewAI-examples/notebooks/Coding Assistant/coding_assistant_eval.ipynb` — a "coding
+  assistant" notebook that runs `exec(imports + "\n" + code)` on model-generated code across
+  multiple cells.
+
+Fixed in v0.2.0: `.ipynb` files are now parsed, each code cell's source is extracted and run
+through the same rules as any `.py` file (findings are reported as `notebook.ipynb[cell N]`,
+with line numbers relative to that cell — a notebook has no single global line numbering).
+Re-scanning both files after the fix correctly reports the `AG001` findings (verified against
+the live files, not simulated — see the exact counts in `CHANGELOG.md` under `[0.2.0]`).
+
+**2. `subprocess.run([interpreter, "-c", code])` was invisible.**
+`llama-index-tools-code-interpreter`'s `base.py` runs
+`subprocess.run([sys.executable, "-c", code], capture_output=True)` on an agent-tool-supplied
+`code` string. The tool's own docstring already warns: *"This tool provides the Agent access to
+the `subprocess.run` command. Arbitrary code execution is possible on the machine running this
+tool."* Neither `AG001` (no `eval`/`exec` call) nor `AG002` (no `shell=True`) matches this
+shape — it is real-world evidence the rule set had a gap, not a hypothetical one.
+
+Fixed in v0.2.0: new rule `AG004` detects a non-literal argument passed to an interpreter's
+`-c` flag inside any `subprocess.*` call. Re-scanning the same file after the fix correctly
+reports one `AG004` HIGH finding.
+
+## A third, latent finding: fixed pre-emptively
+
+Marker matching (`text_contains_any`) used plain substring search (`m in lowered`). The marker
+`autogen` is a substring of `autogenerated`, a common code-generation header string. This did
+**not** cause an actual misfire in any of the 6 repos scanned (checked directly: zero
+occurrences of `autogenerat*` in any of them), but it is a real, latent false-positive
+mechanism. Fixed in v0.2.0 by switching to word-boundary matching.
+
+## Known remaining limitations (not yet fixed)
+
+- **Marker matching is still text-based, not import-graph-aware.** Word-boundary matching (as
+  of v0.2.0) closes the `autogen`/`autogenerated` vector specifically, but it still can't tell
+  "this project imports langchain" apart from "this string mentions langchain in a comment or
+  docstring."
+- **No taint/data-flow analysis.** The HIGH-vs-MEDIUM severity split on `AG001`/`AG002`/`AG004`
+  is a variable-name heuristic (does the argument's name look like `llm_output`, `tool_input`,
+  `code`, etc.), not real reachability analysis from an actual agent/LLM call site.
+- **Python only.** JS/TS agent frameworks (a large share of the LangChain.js / Vercel AI SDK
+  ecosystem) aren't covered.
+
+## Reproduce this
+
+Every repo above is public.
+
+```bash
+git clone --depth 1 https://github.com/crewAIInc/crewAI-examples
+qag scan crewAI-examples --json
+```
+
+For the two fixed findings specifically, the exact files are small enough to fetch directly:
+
+```bash
+curl -sL -o calculator_tool.ipynb https://raw.githubusercontent.com/anthropics/anthropic-cookbook/main/tool_use/calculator_tool.ipynb
+curl -sL -o base.py https://raw.githubusercontent.com/run-llama/llama_index/main/llama-index-integrations/tools/llama-index-tools-code-interpreter/llama_index/tools/code_interpreter/base.py
+qag scan .
+```
